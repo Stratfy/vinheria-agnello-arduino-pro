@@ -678,7 +678,7 @@ void monitoramentoDisplay() {
 
       lcd.setCursor(0, 1);
       lcd.print(((enderecoEEPROM-20)/7));
-      lcd.print(":FLAG SALVO   ");
+      lcd.print(":FLAG SALVO    ");
       delay(2000);
     }
     if(enderecoEEPROM >= 980)digitalWrite(3, HIGH);
@@ -764,9 +764,11 @@ void debugEEPROM() {
 void setup() {
   pinMode(BUZZER, OUTPUT);
   pinMode(3, OUTPUT);
+  pinMode(2, OUTPUT);
   definevars();
   begins(); 
   if(intro)anim_executar_inicializacao();
+  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   Serial.begin(9600); 
   primeirosetup();
 }
