@@ -14,12 +14,6 @@ short int menuatual = 0, opcao = 0;
 #define SETACIMA 2
 #define SETAS 0
 
-#define EEPROM_LUZ_MIN_ADDR 10 
-#define EEPROM_LUZ_MAX_ADDR 12 
-#define ENDERECO_INICIAL_FLAGS 20
-
-int enderecoEEPROM = ENDERECO_INICIAL_FLAGS;
-
 #define DHTpin 4
 #define DHTmodel DHT22
 DHT dht(DHTpin, DHTmodel);
@@ -36,7 +30,7 @@ char keys[ROWS][COLS] = {
   { '1', '2', '3', 'A' },
   { '4', '5', '6', 'B' },
   { '7', '8', '9', 'C' },
-  { '*', '0', '#', 'D' }
+  { '*', '0', '-', 'D' }
 };
 uint8_t colPins[COLS] = { 9, 8, 7, 6 };     
 uint8_t rowPins[ROWS] = { 13, 12, 11, 10 }; 
@@ -175,44 +169,62 @@ void anim_executar_inicializacao() {
 #define CFG_UNIDADE_TEMP_ADDR     2 
 #define CFG_DISPLAY_ADDR          4  
 #define CFG_INTRO_ADDR            6 
+#define CFG_FLAGLUM_ADDR          8
+#define CFG_FLAGTEMP_ADDR        10
+#define CFG_FLAGHUM_ADDR         12
+#define CFG_FLAGCOOLDOWN_ADDR    14
+#define EEPROM_LUZ_MIN_ADDR      16 
+#define EEPROM_LUZ_MAX_ADDR      18 
+#define ENDERECO_INICIAL_FLAGS   20
+int enderecoEEPROM;
  
 const uint16_t config_fac[] PROGMEM = {
   800,  
   1,   
-  1,    
-  1,   
+  -3,    
+  1,
+  90,
+  30,
+  70,
+  1  
 };
  
-const uint8_t variaveismutaveis = 4; 
+const uint8_t variaveismutaveis = 8; 
  
 uint16_t intervaloScroll;
 uint16_t unidadeTemperatura;
-uint16_t display;
+int16_t display;
 uint16_t intro;
+uint16_t flagLum;
+int16_t flagTemp;
+uint16_t flagHum;
+uint16_t flagCooldown;
 
 void definevars(void){
   EEPROM.get(CFG_INTERVALO_SCROLL_ADDR, intervaloScroll);
-  if (intervaloScroll < 100 || intervaloScroll > 2000) {
-    intervaloScroll = 800;
-    EEPROM.put(CFG_INTERVALO_SCROLL_ADDR, intervaloScroll);
-  }
-
   EEPROM.get(CFG_UNIDADE_TEMP_ADDR, unidadeTemperatura);
   EEPROM.get(CFG_DISPLAY_ADDR, display);
   EEPROM.get(CFG_INTRO_ADDR, intro);
+  EEPROM.get(CFG_FLAGLUM_ADDR,flagLum);
+  EEPROM.get(CFG_FLAGTEMP_ADDR,flagTemp);
+  EEPROM.get(CFG_FLAGHUM_ADDR,flagHum);
+  EEPROM.get(CFG_FLAGCOOLDOWN_ADDR,flagCooldown);
 }
  
 void restaurarConfiguracoesDeFabrica() {
   for (int i = 0; i < variaveismutaveis; i++) {
-    uint16_t valor = pgm_read_word_near(config_fac + i);
+    int16_t valor = pgm_read_word_near(config_fac + i);
     EEPROM.put(i * 2, valor);
   }
   limparEEPROMFlags();
+  definevars();
   Serial.println("Configurações de fábrica restauradas!");
 }
  
 void primeirosetup(void){
     if (EEPROM.read(1001) != 1) {
+    enderecoEEPROM = ENDERECO_INICIAL_FLAGS;
+    EEPROM.put(1010,enderecoEEPROM);
     restaurarConfiguracoesDeFabrica();  
     EEPROM.write(1001, 1); 
   }
@@ -221,36 +233,57 @@ void primeirosetup(void){
 const char texto0[] PROGMEM = "*-----Menu-----*";
 const char texto1[] PROGMEM = "1. Display      ";
 const char texto2[] PROGMEM = "2. Setup        ";
-const char texto3[] PROGMEM = "3. Sobre        ";
-const char texto4[] PROGMEM = "*----Setup-----*";
+const char texto3[] PROGMEM = "3. Logs         ";
+const char texto4[] PROGMEM = "*----Setup----* ";
 const char texto5[] PROGMEM = "1.Veloc.Txt     ";
 const char texto6[] PROGMEM = "2.Unidade Temp. ";
-const char texto7[] PROGMEM = "3.Display       ";
+const char texto7[] PROGMEM = "3.UTC           ";
 const char texto8[] PROGMEM = "4.Reset         ";
 const char texto9[] PROGMEM = "5.Intro         ";
 const char texto10[] PROGMEM = "6.Setup LDR    ";
+const char texto11[] PROGMEM = "7.Flag  LDR    ";
+const char texto12[] PROGMEM = "8.Flag Temp.   ";
+const char texto13[] PROGMEM = "6.Flag Humid.  ";
+const char texto14[] PROGMEM = "7.Flag Cooldown";
+const char texto15[] PROGMEM = "*----Logs----* ";
+const char texto16[] PROGMEM = "1.Print Log    ";
+const char texto17[] PROGMEM = "2.Limpar Flag  ";
 
 const char* const texto[] PROGMEM = {
-  texto0, texto1, texto2, texto3, texto4, texto5, texto6, texto7, texto8, texto9,texto10
+  texto0, texto1, texto2, 
+  texto3, texto4, texto5,
+  texto6, texto7, texto8, 
+  texto9, texto10, texto11,
+  texto12, texto13, texto14,
+  texto15, texto16, texto17
 };
  
 const char descricoes0[] PROGMEM = "Navegue pelas paginas e selecione no teclado - A. Subir - B. Descer - C. Voltar menu - D. Enter   ";
 const char descricoes1[] PROGMEM = "Entra no modo leitura de dados e mostra na tela   ";
 const char descricoes2[] PROGMEM = "Configura os parametros do dispositivo   ";
-const char descricoes3[] PROGMEM = "Explica como funciona o dispositivo   ";
+const char descricoes3[] PROGMEM = "Entra das opcoes de log - output na Serial   ";
 const char descricoes4[] PROGMEM = "Modifica as configuracoes do dispositivo aperte D para dar entrada   ";
 const char descricoes5[] PROGMEM = "Altera a velocidade da rolagem do texto   ";
-const char descricoes6[] PROGMEM = "Altera a unidade de medida da temperatura - 1.Celsius - 2.Fahrenheit - 3.Kelvin    ";
-const char descricoes7[] PROGMEM = "Altera a disposicao dos dados lidos no display - 1. Simples - 2.Desenho - 3.SlideShow    ";
+const char descricoes6[] PROGMEM = "Altera a unidade de medida da temperatura - 1.Celsius - 2.Fahrenheit    ";
+const char descricoes7[] PROGMEM = "Altera o fuso horario - ";
 const char descricoes8[] PROGMEM = "Redefine para as configuracoes de fabrica    ";
 const char descricoes9[] PROGMEM = "Liga ou desliga a intro ao ligar - 0. Desliga - 1.Liga   ";
-const char descricoes10[] PROGMEM = "Configura a luz minima e maxima do ambiente";
+const char descricoes10[] PROGMEM = "Configura a luz minima e maxima do ambiente  ";
+const char descricoes11[] PROGMEM = "Modifica o valor de log da leitura da luz(%) - default 90% ";
+const char descricoes12[] PROGMEM = "Modifica o valor de log da leitura da temperatura(celsius) - defalt 30 ";
+const char descricoes13[] PROGMEM = "Modifica o valor de log da leitura da humidade(%) - default 70%  ";
+const char descricoes14[] PROGMEM = "Muda o intervalo de tempo(Em minutos) do registro das flags- default 1 minuto  ";
+const char descricoes15[] PROGMEM = "Sessao dos Logs das Flags - plota no monitor serial as informacoes armazenadas  ";
+const char descricoes16[] PROGMEM = "Plota no monitor serial o debug do dispositivo  ";
+const char descricoes17[] PROGMEM = "Limpa as Flags da EEPROM - Cabem 140 flags no total  ";
 
 const char* const descricoes[] PROGMEM = {
   descricoes0, descricoes1, descricoes2,
   descricoes3, descricoes4, descricoes5,
   descricoes6, descricoes7, descricoes8,
-  descricoes9, descricoes10
+  descricoes9, descricoes10, descricoes11,
+  descricoes12, descricoes13, descricoes14,
+  descricoes15, descricoes16, descricoes17
 };
  
 const uint8_t customChars0[] PROGMEM = {0x00};
@@ -258,11 +291,33 @@ const uint8_t customChars1[] PROGMEM = {0x10};
 const uint8_t customChars2[] PROGMEM = {0x00,0x00,0x1F,0x11,0x0A,0x04,0x00,0x00};      
 const uint8_t customChars3[] PROGMEM = {0x00,0x00,0x1F,0x1F,0x0E,0x04,0x00,0x00};     
 const uint8_t customChars4[] PROGMEM = {0x00,0x00,0x04,0x0A,0x11,0x1F,0x00,0x00};      
-const uint8_t customChars5[] PROGMEM = {0x00,0x00,0x04,0x0E,0x1F,0x1F,0x00,0x00};      
+const uint8_t customChars5[] PROGMEM = {0x00,0x00,0x04,0x0E,0x1F,0x1F,0x00,0x00};   
+const uint8_t customChars6[] PROGMEM = {0x00,0x03,0x0F,0x0F,0x0F,0x0F,0x03,0x00};  // Sol 1 - lado esquerdo
+const uint8_t customChars7[] PROGMEM = {0x00,0x18,0x1E,0x1E,0x1E,0x1E,0x18,0x00};  // Sol 1 - lado direito
+const uint8_t customChars8[] PROGMEM = {0x00,0x03,0x0C,0x08,0x08,0x0C,0x03,0x00};  // Sol 2 - lado esquerdo
+const uint8_t customChars9[] PROGMEM = {0x00,0x18,0x06,0x02,0x02,0x06,0x18,0x00};  // Sol 2 - lado direito
+const uint8_t customChars10[] PROGMEM = {0x15,0x93,0x0C,0x08,0x08,0x0C,0x93,0x15}; // Sol 3 - lado esquerdo
+const uint8_t customChars11[] PROGMEM = {0x14,0x19,0x06,0x02,0x02,0x06,0x19,0x14}; // Sol 3 - lado direito
+const uint8_t customChars12[] PROGMEM = { 0x01, 0x02, 0x04, 0x09, 0x08, 0x04, 0x03, 0x00 }; // Gota - lado esquerdo
+const uint8_t customChars13[] PROGMEM = { 0x10, 0x08, 0x04, 0x02, 0x02, 0x04, 0x18, 0x00 }; // Gota - lado direito
+const uint8_t customChars14[] PROGMEM = { 0x01, 0x02, 0x04, 0x0D, 0x0F, 0x07, 0x03, 0x00 }; // Gota 2 - lado esquerdo
+const uint8_t customChars15[] PROGMEM = { 0x10, 0x18, 0x1C, 0x1E, 0x1E, 0x1C, 0x18, 0x00 }; // Gota 2 - lado direito
+const uint8_t customChars16[] PROGMEM = { 0x04, 0x15, 0x0E, 0x04, 0x04, 0x0E, 0x15, 0x04 }; // lado esquerdo
+const uint8_t customChars17[] PROGMEM = { 0x04, 0x15, 0x0E, 0x04, 0x04, 0x0E, 0x15, 0x04 }; // lado direito
+const uint8_t customChars18[] PROGMEM = { 0x04, 0x0C, 0x0A, 0x06, 0x04, 0x0C, 0x0E, 0x04 }; // lado esquerdo
+const uint8_t customChars19[] PROGMEM = { 0x04, 0x06, 0x0A, 0x0C, 0x04, 0x06, 0x1C, 0x04 }; // lado direito
+
+
 
 const uint8_t* const customChars[] PROGMEM = {
   customChars0, customChars1, customChars2,
   customChars3, customChars4, customChars5,
+  customChars6, customChars7, customChars8,
+  customChars9, customChars10, customChars11,
+  customChars12, customChars13, customChars14,
+  customChars15, customChars16, customChars17,
+  customChars18, customChars19
+
 };
  
 void begins(void){
@@ -372,7 +427,7 @@ int modoInput(int valorAtual, int minimo, int maximo) {
  
   while (key != 'D') {
     key = kpd.getKey();
-    if (key >= '0' && key <= '9' && digitosvalidos < 8) {
+    if ((key >= '0' && key <= '9' && digitosvalidos < 8) || (key == '-' && digitosvalidos == 0)) {
       numChar[digitosvalidos] = key;
       lcd.setCursor(digitosvalidos, 0);
       lcd.print(numChar[digitosvalidos++]);
@@ -426,83 +481,11 @@ void limparEEPROMFlags() {
   for (int i = 20; i <= 1000; i++) {
     EEPROM.update(i, 0xFF);  // padrão de memória "apagada"
   }
-  enderecoEEPROM = ENDERECO_INICIAL_FLAGS;  // reseta o ponteiro de escrita
+  EEPROM.put(1010,ENDERECO_INICIAL_FLAGS);  // reseta o ponteiro de escrita
+  digitalWrite(3, LOW);
   Serial.println("EEPROM de 20 até 1000 limpa com sucesso.");
 }
  
-void setup() {
-
-  definevars();
-  begins(); 
-  if(intro)anim_executar_inicializacao();
-  Serial.begin(9600); 
-  primeirosetup();
-  //limparEEPROMFlags();
-  if (EEPROM.read(100) != 1) {
-    intervaloScroll = 800;
-  }
-}
- 
-void loop() {
- 
-  switch(menuatual){
-  
-    case 1: menus(1, SETAS, 99);break;
-    case 2:menus(2, SETAS,4);break;
-    case 3:menus(3,SETAS,98);break; 
-    case 4:menus(4,SETAS,0);break;
-    case 5:menus(5,SETAS,100);break;
-    case 6:menus(6,SETAS,101);break; 
-    case 7:menus(7,SETAS,102);break; 
-    case 8:menus(8,SETAS,103);break; 
-    case 9:menus(9,SETAS,104);break; 
-    case 10:menus(10,SETAS,105);break;
-    
-    case 98:debugEEPROM();menuatual = 3;break;
-    case 99:monitoramentoDisplay();break;
-    
-    case 100: 
-      intervaloScroll = modoInput(intervaloScroll, 100, 2000);
-      EEPROM.put(CFG_INTERVALO_SCROLL_ADDR, intervaloScroll);
-      menuatual = 5; 
-      break;
-   
-    case 101: 
-      unidadeTemperatura = modoInput(unidadeTemperatura,1,3);
-      EEPROM.put(CFG_UNIDADE_TEMP_ADDR, unidadeTemperatura);
-      menuatual = 6;
-      break;
- 
-    case 102: 
-      display = modoInput(display,1,3);
-      EEPROM.put(CFG_DISPLAY_ADDR, display);
-      menuatual = 7;
-      break;
-   
-    case 103: 
-      restaurarConfiguracoesDeFabrica();
-      definevars();
-      menuatual = 8;
-      break;
-    
-    case 104: 
-      intro = modoInput(intro,0,1);
-      EEPROM.put(CFG_INTRO_ADDR, intro);
-      menuatual = 9;
-      break;
-
-    case 105:
-      setupLuzMinMax();
-      menuatual = 10;
-      break;
- 
- 
-    default:
-      menuatual = 0;
-      menus(0,SETABAIXO,0); 
-  }
-}
-
 void setupLuzMinMax() {
   int soma = 0;
 
@@ -577,6 +560,7 @@ void monitoramentoDisplay() {
     // Verifica tecla de saída
     char tecla = kpd.getKey();
     if (tecla == 'C') {
+      EEPROM.put(1010,enderecoEEPROM);
       lcd.clear();
       menuatual = 0;
       return;
@@ -611,33 +595,77 @@ void monitoramentoDisplay() {
       luzMapeada = constrain(luzMapeada, 0, 100);
     }
 
-    // Atualiza display a cada 1s
-    if (millis() - timerPrint >= 1000) {
+    // Atualiza display a cada 
+    if (millis() - timerPrint >= 1500) {
       timerPrint = millis();
       lcd.clear();
       lcd.setCursor(0, 0);
-      lcd.print("T:"); lcd.print(temp, 1);
-      lcd.print(" H:"); lcd.print(hum, 1);
-      lcd.setCursor(0, 1);
-      lcd.print("L:"); lcd.print(luzMapeada); lcd.print("%   ");
+      lcd.print(luzMapeada);lcd.print("%   ");
+      lcd.setCursor(0,1);lcd.print("L:");
+      uint8_t spriteL[8], spriteR[8];
+      if (luzMapeada <= 33) {
+        memcpy_P(spriteL, (uint8_t*)pgm_read_word(&(customChars[6])), 8);
+        memcpy_P(spriteR, (uint8_t*)pgm_read_word(&(customChars[7])), 8);
+      } else if (luzMapeada <= flagLum) {
+        memcpy_P(spriteL, (uint8_t*)pgm_read_word(&(customChars[8])), 8);
+        memcpy_P(spriteR, (uint8_t*)pgm_read_word(&(customChars[9])), 8);
+      } else {
+        memcpy_P(spriteL, (uint8_t*)pgm_read_word(&(customChars[10])), 8);
+        memcpy_P(spriteR, (uint8_t*)pgm_read_word(&(customChars[11])), 8);
+      }
+      lcd.createChar(4, spriteL);
+      lcd.createChar(5, spriteR);
+      lcd.setCursor(2, 1); lcd.write(byte(4));
+      lcd.setCursor(3, 1); lcd.write(byte(5));
+
+
+      lcd.setCursor(6,0); lcd.print(hum, 1);
+      lcd.setCursor(6,1); lcd.print("H:");
+      if (hum <= flagHum) {
+        memcpy_P(spriteL, (uint8_t*)pgm_read_word(&(customChars[12])), 8);
+        memcpy_P(spriteR, (uint8_t*)pgm_read_word(&(customChars[13])), 8);
+      } else {
+        memcpy_P(spriteL, (uint8_t*)pgm_read_word(&(customChars[14])), 8);
+        memcpy_P(spriteR, (uint8_t*)pgm_read_word(&(customChars[15])), 8);
+      }
+      lcd.createChar(6, spriteL);
+      lcd.createChar(7, spriteR);
+      lcd.setCursor(8, 1); lcd.write(byte(6));
+      lcd.setCursor(9, 1); lcd.write(byte(7));
+
+
+      lcd.setCursor(12,0); lcd.print(unidadeTemperatura == 2?temp * 1.8 + 32:temp, 1);
+      lcd.setCursor(12,1); lcd.print("T:");
+      if (temp <= flagTemp) {
+        memcpy_P(spriteL, (uint8_t*)pgm_read_word(&(customChars[16])), 8);
+        memcpy_P(spriteR, (uint8_t*)pgm_read_word(&(customChars[17])), 8);
+      } else {
+        memcpy_P(spriteL, (uint8_t*)pgm_read_word(&(customChars[18])), 8);
+        memcpy_P(spriteR, (uint8_t*)pgm_read_word(&(customChars[19])), 8);
+      }
+      lcd.createChar(1, spriteL);
+      lcd.createChar(2, spriteR);
+      lcd.setCursor(14, 1); lcd.write(byte(1));
+      lcd.setCursor(15, 1); lcd.write(byte(2));
+  
     }
 
     // Verifica condições para flag
-    bool flag = luzMapeada > 90 || temp > 30 || hum > 70;
+    bool flag = luzMapeada > flagLum || temp > flagTemp || hum > flagHum;
     
 
-    if (flag && (enderecoEEPROM + 10 <= 1000) && millis() - timerFlag >= 20000) {
+    if (flag && (enderecoEEPROM + 7 <= 1000) && millis() - timerFlag >= (unsigned long)flagCooldown * 60000) {
       timerFlag = millis();
       DateTime now = rtc.now();
       
-      uint32_t timestamp = now.unixtime();
+      uint32_t timestamp = now.unixtime() + display * 3600;
       EEPROM.put(enderecoEEPROM, timestamp); enderecoEEPROM += 4;
-      EEPROM.put(enderecoEEPROM, (uint16_t)luzMapeada); enderecoEEPROM += 2;
-      EEPROM.put(enderecoEEPROM, (uint16_t)temp); enderecoEEPROM += 2;
-      EEPROM.put(enderecoEEPROM, (uint16_t)hum); enderecoEEPROM += 2;
+      EEPROM.put(enderecoEEPROM, (uint8_t)luzMapeada); enderecoEEPROM += 1;
+      EEPROM.put(enderecoEEPROM, (int8_t)temp); enderecoEEPROM += 1;
+      EEPROM.put(enderecoEEPROM, (uint8_t)hum); enderecoEEPROM += 1;
 
-      Serial.print("EEPROM usada até: ");
-      Serial.println(enderecoEEPROM);
+      Serial.print("Número de Flags Salvas: ");
+      Serial.println(((enderecoEEPROM-20)/7));
 
       //FLAG NA MEMÓRIA: TEMPO(4BYTES)LUZ(2BYTES)TEMP(2BYTES)HUMIDADE(2BYTES)
       //capacidade para 98 flags antes de zerar
@@ -646,6 +674,7 @@ void monitoramentoDisplay() {
       lcd.print("FLAG SALVO     ");
       delay(1000);
     }
+    if(enderecoEEPROM >= 980)digitalWrite(3, HIGH);
   }
 }
 
@@ -654,9 +683,8 @@ void debugEEPROM() {
   Serial.println("===== DEBUG EEPROM =====");
  
  
-  uint16_t val;
-  EEPROM.get(CFG_INTERVALO_SCROLL_ADDR, val);
-  Serial.print("Scroll: "); Serial.println(val);
+  int16_t val;
+  Serial.print("Scroll: "); Serial.println(intervaloScroll);
   EEPROM.get(CFG_UNIDADE_TEMP_ADDR, val);
   Serial.print("Unidade Temp: "); Serial.println(val);
   EEPROM.get(CFG_DISPLAY_ADDR, val);
@@ -668,6 +696,17 @@ void debugEEPROM() {
   Serial.print("Luz Mínima: "); Serial.println(val);
   EEPROM.get(EEPROM_LUZ_MAX_ADDR, val);
   Serial.print("Luz Máxima: "); Serial.println(val);
+
+  EEPROM.get(CFG_FLAGLUM_ADDR, val);
+  Serial.print("Flag luminosidade: "); Serial.println(flagLum);
+  EEPROM.get(CFG_FLAGTEMP_ADDR, val);
+  Serial.print("Flag temperatura: "); Serial.println(flagTemp);
+  EEPROM.get(CFG_FLAGHUM_ADDR, val);
+  Serial.print("Flag humidade: "); Serial.println(flagHum);
+  EEPROM.get(CFG_FLAGCOOLDOWN_ADDR, val);
+  Serial.print("Flag cooldown: "); Serial.println(val);
+  EEPROM.get(1010, val);
+  Serial.print("Endereco Eeprom: ");Serial.println(val);
 
 
   Serial.println("\n===== FLAGS SALVAS =====");
@@ -682,18 +721,18 @@ void debugEEPROM() {
     uint8_t month = dt.month(), day = dt.day(), hour = dt.hour();
     uint8_t minute = dt.minute(), second = dt.second();
     endereco += 4;
-    uint16_t luz;
+    uint8_t luz;
     EEPROM.get(endereco,luz);
-    endereco += 2;
-    uint16_t temp;
+    endereco += 1;
+    int8_t temp;
     EEPROM.get(endereco,temp);
-    endereco += 2;
-    uint16_t hum;
+    endereco += 1;
+    uint8_t hum;
     EEPROM.get(endereco,hum);
-    endereco += 2;
+    endereco += 1;
     
 
-    if (year == 0xFFFF || year == 0 || year > 3000 || luz == 65535) break;
+    if (year == 0xFFFF || year == 0 || year > 3000 || luz == 255) break;
 
     Serial.print("[FLAG "); Serial.print(++flagCount); Serial.println("]");
     Serial.print("Data/Hora: ");
@@ -712,4 +751,133 @@ void debugEEPROM() {
 
   if (flagCount == 0)
     Serial.println("Nenhuma flag registrada.");
+}
+
+
+void setup() {
+  pinMode(3, OUTPUT);
+  definevars();
+  begins(); 
+  if(intro)anim_executar_inicializacao();
+  Serial.begin(9600); 
+  primeirosetup();
+}
+ 
+void loop() {
+
+  switch(menuatual){
+
+    case 1:  // Menu Principal → 1. Display
+      menus(1, SETAS, 99); break;
+
+    case 2:  // Menu Principal → 2. Setup
+      menus(2, SETAS, 4); break;
+
+    case 3:  // Menu Principal → 3. Sobre
+      menus(3, SETAS, 15); break;
+
+    case 4:  // Submenu de Setup
+      menus(4, SETAS, 0); break;
+
+    case 5:  // Setup → 1. Velocidade de Texto
+      menus(5, SETAS, 100); break;
+
+    case 6:  // Setup → 2. Unidade de Temperatura
+      menus(6, SETAS, 101); break;
+
+    case 7:  // Setup → 3. Modo de Display
+      menus(7, SETAS, 102); break;
+
+    case 8:  // Setup → 4. Reset de Fábrica
+      menus(8, SETAS, 103); break;
+
+    case 9:  // Setup → 5. Intro Lig/Deslig
+      menus(9, SETAS, 104); break;
+
+    case 10: // Setup → 6. Setup LDR
+      menus(10, SETAS, 105); break;
+
+    case 11: // Setup → 7. Limite Luminosidade Flag
+      menus(11, SETAS, 106); break;
+
+    case 12: // Setup → 8. Limite Temperatura Flag
+      menus(12, SETAS, 107); break;
+
+    case 13: // Setup → 9. Limite Umidade Flag
+      menus(13, SETAS, 108); break;
+
+    case 14: // Setup → 10. Cooldown entre Flags
+      menus(14, SETAS, 109); break;
+    
+    case 15:
+      menus(15, SETAS, 0);break;
+    
+    case 16:
+      menus(16, SETAS, 98);break;
+    
+    case 17:
+      menus(17, SETAS, 97);break;
+
+    case 97:
+      limparEEPROMFlags();menuatual = 17;break;
+
+    case 98: // Comando Especial → Debug EEPROM
+      debugEEPROM();menuatual = 16; break;
+
+    case 99: // Comando Especial → Monitoramento
+      EEPROM.get(1010,enderecoEEPROM);monitoramentoDisplay(); break;
+
+    case 100: // Input → Velocidade de rolagem
+      intervaloScroll = modoInput(intervaloScroll, 100, 2000);
+      EEPROM.put(CFG_INTERVALO_SCROLL_ADDR, intervaloScroll);
+      menuatual = 5; break;
+
+    case 101: // Input → Unidade de Temperatura
+      unidadeTemperatura = modoInput(unidadeTemperatura, 1, 2);
+      EEPROM.put(CFG_UNIDADE_TEMP_ADDR, unidadeTemperatura);
+      menuatual = 6; break;
+
+    case 102: // Input → Tipo de Display
+      display = modoInput(display, -12, 12);
+      EEPROM.put(CFG_DISPLAY_ADDR, display);
+      menuatual = 7; break;
+
+    case 103: // Executa Reset de Fábrica
+      restaurarConfiguracoesDeFabrica();
+      definevars();
+      menuatual = 8; break;
+
+    case 104: // Input → Intro Ligado ou Desligado
+      intro = modoInput(intro, 0, 1);
+      EEPROM.put(CFG_INTRO_ADDR, intro);
+      menuatual = 9; break;
+
+    case 105: // Executa setup de Luz Mínima/Máxima
+      setupLuzMinMax();
+      menuatual = 10; break;
+
+    case 106: // Input → Limite de luminosidade para flag
+      flagLum = modoInput(flagLum, 0, 100);
+      EEPROM.put(CFG_FLAGLUM_ADDR, flagLum);
+      menuatual = 11; break;
+
+    case 107: // Input → Limite de temperatura para flag
+      flagTemp = modoInput(flagTemp, -40, 80);
+      EEPROM.put(CFG_FLAGTEMP_ADDR, flagTemp);
+      menuatual = 12; break;
+
+    case 108: // Input → Limite de umidade para flag
+      flagHum = modoInput(flagHum, 0, 100);
+      EEPROM.put(CFG_FLAGHUM_ADDR, flagHum);
+      menuatual = 13; break;
+
+    case 109: // Input → Tempo de cooldown entre flags (ms)
+      flagCooldown = modoInput(flagCooldown, 1, 60);
+      EEPROM.put(CFG_FLAGCOOLDOWN_ADDR, flagCooldown);
+      menuatual = 14; break;
+
+    default: // Menu Inicial
+      menuatual = 0;
+      menus(0, SETABAIXO, 0);
+  }
 }
