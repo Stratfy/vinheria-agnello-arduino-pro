@@ -13,6 +13,7 @@ short int menuatual = 0, opcao = 0;
 #define SETABAIXO 1
 #define SETACIMA 2
 #define SETAS 0
+#define BUZZER 5
 
 #define DHTpin 4
 #define DHTmodel DHT22
@@ -446,6 +447,7 @@ int modoInput(int valorAtual, int minimo, int maximo) {
     delay(1000);
     return modoInput(valorAtual, minimo, maximo);
   } else {
+    tone(BUZZER,300,1200);
     return num;
   }
 }
@@ -755,6 +757,7 @@ void debugEEPROM() {
 
 
 void setup() {
+  pinMode(BUZZER, OUTPUT);
   pinMode(3, OUTPUT);
   definevars();
   begins(); 
@@ -877,6 +880,8 @@ void loop() {
       menuatual = 14; break;
 
     default: // Menu Inicial
+      tone(BUZZER,261,1000);
+      
       menuatual = 0;
       menus(0, SETABAIXO, 0);
   }
