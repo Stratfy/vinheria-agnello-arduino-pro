@@ -7,7 +7,7 @@
 #include <RTClib.h>
 
  
-const int velocidade = 30;  
+const int velocidade = 20;  
 short int menuatual = 0, opcao = 0;
  
 #define SETABAIXO 1
@@ -556,7 +556,7 @@ void monitoramentoDisplay() {
   unsigned long timerPrint = millis();
   unsigned long timerFlag = millis();
   float mediaLuz = 0;
-  int luzMapeada = 50;
+  int8_t luzMapeada = 50;
 
   while (true) {
     // Verifica tecla de saída
@@ -593,8 +593,8 @@ void monitoramentoDisplay() {
       idxLeitura = 0;
 
       // Proteção contra mapeamento errado
-      luzMapeada = map(mediaLuz, luzMin, luzMax, 0, 100);
-      luzMapeada = constrain(luzMapeada, 0, 100);
+      luzMapeada = map(mediaLuz, luzMin, luzMax, 0, 101);
+      
     }
 
     // Atualiza display a cada 
@@ -654,27 +654,32 @@ void monitoramentoDisplay() {
 
     // Verifica condições para flag
     bool flag = luzMapeada > flagLum || temp > flagTemp || hum > flagHum;
-    
+    if (millis() - timerFlag >= (unsigned long)flagCooldown * 60000) {
+      digitalWrite(2, HIGH);
+    } else {
+      digitalWrite(2, LOW); // desliga o LED se o tempo já passou
+    }
 
     if (flag && (enderecoEEPROM + 7 <= 1000) && millis() - timerFlag >= (unsigned long)flagCooldown * 60000) {
       timerFlag = millis();
       DateTime now = rtc.now();
-      
+      digitalWrite(2, LOW); 
       uint32_t timestamp = now.unixtime() + display * 3600;
       EEPROM.put(enderecoEEPROM, timestamp); enderecoEEPROM += 4;
-      EEPROM.put(enderecoEEPROM, (uint8_t)luzMapeada); enderecoEEPROM += 1;
+      EEPROM.put(enderecoEEPROM, (int8_t)luzMapeada); enderecoEEPROM += 1;
       EEPROM.put(enderecoEEPROM, (int8_t)temp); enderecoEEPROM += 1;
       EEPROM.put(enderecoEEPROM, (uint8_t)hum); enderecoEEPROM += 1;
 
       Serial.print("Número de Flags Salvas: ");
       Serial.println(((enderecoEEPROM-20)/7));
 
-      //FLAG NA MEMÓRIA: TEMPO(4BYTES)LUZ(2BYTES)TEMP(2BYTES)HUMIDADE(2BYTES)
+      //FLAG NA MEMÓRIA: TEMPO(4BYTES)LUZ(1BYTES)TEMP(1BYTES)HUMIDADE(1BYTES)
       //capacidade para 98 flags antes de zerar
 
       lcd.setCursor(0, 1);
-      lcd.print("FLAG SALVO     ");
-      delay(1000);
+      lcd.print(((enderecoEEPROM-20)/7));
+      lcd.print(":FLAG SALVO   ");
+      delay(2000);
     }
     if(enderecoEEPROM >= 980)digitalWrite(3, HIGH);
   }
