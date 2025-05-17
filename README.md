@@ -1,142 +1,115 @@
+# Vinheria Agnello - Sistema de Monitoramento Ambiental com Arduino
 
-# Sistema de Monitoramento Ambiental – Stratfy Embedded
+![Status](https://img.shields.io/badge/status-finalizado-brightgreen)
+![Projeto Acadêmico](https://img.shields.io/badge/tipo-Projeto%20Acadêmico-orange)
+![Linguagem](https://img.shields.io/badge/código-C++-blue)
+![Plataforma](https://img.shields.io/badge/plataforma-Arduino-blueviolet)
+![Licença](https://img.shields.io/badge/licença-MIT-informational)
+![Versão](https://img.shields.io/badge/versão-1.0-lightgrey)
 
-![Status](https://img.shields.io/badge/Status-Em%20Operação-brightgreen)
-![Plataforma](https://img.shields.io/badge/Plataforma-Arduino%20UNO-blue)
-![Linguagem](https://img.shields.io/badge/Linguagem-C/C++-lightgrey)
-![Licença](https://img.shields.io/badge/Licen%C3%A7a-MIT-yellow)
+Projeto acadêmico desenvolvido na FIAP com foco em monitoramento ambiental aplicado ao armazenamento de vinhos. O sistema realiza leitura contínua de temperatura, umidade e luminosidade, com interface interativa via LCD, menus configuráveis e persistência de dados na EEPROM. Eventos críticos são automaticamente registrados para análise posterior.
 
-Projeto de sistema embarcado para monitoramento de luminosidade, temperatura e umidade, com registro de eventos na EEPROM, animações gráficas no display LCD e interação via teclado matricial. Desenvolvido para aplicações em ambientes inteligentes, IoT e processos educativos.
+## Visão Geral do Circuito
 
----
+> **Simulação disponível no Wokwi:**  
+> [Link da simulação Wokwi](https://wokwi.com/projects/430958871022611457)  
 
-## Funcionalidades
 
-- Animação de inicialização com sprites no LCD
-- Menu interativo com navegação por teclas (A, B, C, D)
-- Leitura de:
-  - Luminosidade (LDR)
-  - Temperatura (DHT22)
-  - Umidade (DHT22)
-- Visualização dos dados no LCD com indicadores gráficos (sol, gota, termômetro, etc.)
-- Registro de eventos na EEPROM com:
-  - Data e hora (via RTC DS1307)
-  - Leitura de luz, temperatura e umidade
-- Flags de alerta personalizáveis:
-  - Luminosidade acima do limite
-  - Temperatura acima do limite
-  - Umidade acima do limite
-- Cooldown configurável entre registros
-- Aviso visual (LED) quando a EEPROM estiver cheia
-- Reset para configurações de fábrica
+![Esquema do Circuito](https://i.imgur.com/IGAaf9L.png)
 
----
+
+## Funcionalidades Técnicas
+
+- Interface gráfica em LCD 16x2 (modo paralelo).
+- Navegação por menus via Keypad 4x4.
+- Animação de introdução com sprites personalizados.
+- Monitoramento contínuo:
+  - Sensor DHT22 (Temperatura e Umidade)
+  - Sensor LDR (Luminosidade)
+- Cálculo de médias com base em múltiplas amostras (20 leituras).
+- Registro de eventos críticos (flags) na EEPROM com:
+  - Timestamp (RTC DS1307)
+  - Luminosidade (% mapeado)
+  - Temperatura
+  - Umidade
+- Configuração dos valores de alerta diretamente no menu.
+- Cooldown ajustável para evitar registros repetidos.
+- Diagnóstico completo via Serial com função de debug.
+- Estrutura de dados persistente para reconfiguração automática.
 
 ## Componentes Utilizados
 
-| Componente         | Quantidade | Descrição                                     |
-|--------------------|------------|-----------------------------------------------|
-| Arduino Uno        | 1x         | Microcontrolador principal                   |
-| Sensor LDR         | 1x         | Sensor de luminosidade                       |
-| Sensor DHT22       | 1x         | Sensor de temperatura e umidade              |
-| Display LCD 16x2 I2C | 1x       | Interface de exibição                        |
-| RTC DS1307 + CR2032| 1x         | Relógio de tempo real com backup de bateria  |
-| Teclado Matricial 4x4 | 1x      | Entrada de comandos                          |
-| LED                | 1x         | Indicador de EEPROM cheia                    |
-| Resistores diversos| Diversos   | Para LDR e outros componentes                |
-| Protoboard         | 1x         | Montagem do circuito                         |
-| Jumpers            | Diversos   | Conexões entre os componentes                |
+| Componente        | Descrição                        |
+|------------------|----------------------------------|
+| Arduino Uno       | Microcontrolador principal       |
+| LCD 16x2          | Interface de saída paralela      |
+| DHT22             | Sensor de temperatura e umidade  |
+| LDR               | Sensor de luminosidade analógico |
+| DS1307            | RTC para registro de hora        |
+| Keypad 4x4        | Interface de entrada             |
+| EEPROM interna    | Armazenamento de dados persistente |
+| Buzzer            | Emissão sonora de alerta         |
+| LEDs              | Sinalização visual               |
+| Potenciômetro     | Ajuste de contraste do LCD       |
 
----
-
-## Estrutura do Projeto
+## Organização da EEPROM
 
 ```
-stratfy_monitoramento_embarcado/
-├── main.ino                        # Código completo do sistema
-├── README.md                        # Documentação do projeto
-├── LICENSE                           # Licença do projeto (MIT)
+[0 – 19]    → Configurações do sistema
+[20 – ...]  → Flags com eventos (até 140+ registros)
+              - Timestamp (4 bytes)
+              - Luminosidade (%) (1 byte)
+              - Temperatura (1 byte)
+              - Umidade (1 byte)
 ```
 
----
+## Mapa de Menus
 
-## Como Operar
+```
+Menu Principal:
+  1. Display         → Inicia monitoramento em tempo real
+  2. Setup           → Parâmetros do sistema
+  3. Logs            → Diagnóstico e depuração
 
-1. **Na primeira execução:**
-   - O sistema solicita configuração de luz mínima e máxima.
-   - Use o menu `Setup → Setup LDR`.
+Submenu de Setup:
+  - Velocidade do texto (scroll)
+  - Unidade de temperatura (°C/°F)
+  - Fuso horário (offset)
+  - Reset de fábrica
+  - Ativação da introdução
+  - Setup de luminosidade mínima/máxima
+  - Limites de alerta (luz, temperatura, umidade)
+  - Cooldown entre registros
+```
 
-2. **Configurações adicionais:**
-   - Flags de luminosidade, temperatura, umidade e cooldown podem ser definidas no menu `Setup`.
+## Execução
 
-3. **Funcionamento:**
-   - O sistema faz leituras contínuas dos sensores.
-   - As leituras são exibidas no LCD com indicadores gráficos:
-     - Sol para luminosidade
-     - Gota para umidade
-     - Termômetro ou floco de neve para temperatura
-   - Quando qualquer valor ultrapassa seu limite configurado, o sistema:
-     - Salva um evento na EEPROM com timestamp e valores
-     - Exibe “FLAG SALVO” no LCD
-   - Um LED acende quando a EEPROM atinge sua capacidade máxima (~140 flags).
+1. Monte o circuito conforme o diagrama disponível na simulação Wokwi ou na imagem.
+2. Faça upload do código na Arduino IDE.
+3. Utilize o Keypad para navegar pelos menus.
+4. Configure os valores mínimos e máximos de luminosidade pelo menu Setup.
+5. Ative o modo "Display" para iniciar o monitoramento.
+6. Flags serão salvas automaticamente quando algum valor ultrapassar os limites definidos.
 
-4. **Logs e Debug:**
-   - Acessar pelo menu `Logs`:
-     - Print das flags na serial
-     - Limpeza das flags na EEPROM
+Para depuração:
+- Use a opção `Logs > Print Log` para visualizar os registros no monitor serial.
+- Use a opção `Logs > Limpar Flag` para resetar os dados da EEPROM.
 
----
+## Equipe do Projeto
 
-## Lógica do Sistema
-
-- **EEPROM:**  
-Cada flag ocupa 7 bytes:
-- Timestamp (4 bytes)
-- Luminosidade (1 byte)
-- Temperatura (1 byte)
-- Umidade (1 byte)
-
-Capacidade: ~140 registros.
-
-- **CoolDown:**  
-Permite definir um tempo mínimo entre registros consecutivos.
-
-- **Navegação:**  
-Utiliza teclado matricial:
-- `A`: Subir
-- `B`: Descer
-- `C`: Voltar
-- `D`: Enter/Selecionar
-
-- **Animações:**  
-Ao ligar, exibe uma aranha animada puxando o nome “Stratfy”.
-
----
-
-## Requisitos
-
-- **IDE:** Arduino IDE 1.8+ ou plataforma WokWI (simulação)
-- **Bibliotecas:**  
-  - `LiquidCrystal_I2C.h`  
-  - `Keypad.h`  
-  - `DHT.h`  
-  - `RTClib.h`  
-  - `EEPROM.h` (nativa)
-
----
-
-## Equipe
-
-| Nome               | Função            |
-|--------------------|-------------------|
-| Fábio Cabrini      | Desenvolvimento e Projeto Eletrônico |
-
----
+| Nome                | Responsabilidade                            |
+|---------------------|---------------------------------------------|
+| Anthony Sforzin     | Desenvolvimento                             |
+| Luigi Cabrini       | Desenvolvimento                             |
+| Rogério Arroyo      | Desenvolvimento                             |
+| Thayná Simões       | Desenvolvimento                             |
+| Bruno Koeke         | Desenvolvimento                             |
 
 ## Licença
 
-Este projeto está licenciado sob os termos da licença MIT. Consulte o arquivo [`LICENSE`](LICENSE) para mais detalhes.
+Este projeto está licenciado sob os termos da **Licença MIT**.  
 
 ---
 
-<p align="center"><b>Desenvolvido com dedicação pela equipe Stratfy</b></p>
+**Versão do Projeto:** 1.0  
+**Status:** Finalizado
